@@ -1,0 +1,35 @@
+{
+  "name": "@toijs/typeorm",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "TypeORM integration for @toijs/modular (DataSource, MySQL helpers, module)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsc -p tsconfig.json --watch"
+  },
+  "peerDependencies": {
+    "@toijs/modular": "*"
+  },
+  "dependencies": {
+    "mysql2": "^3.23.2",
+    "typeorm": "^1.1.0"
+  },
+  "devDependencies": {
+    "@toijs/modular": "workspace:*",
+    "@types/node": "^22.20.1",
+    "typescript": "~5.9.3"
+  }
+}

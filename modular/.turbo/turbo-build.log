@@ -1,0 +1,4 @@
+
+> @toijs/modular@1.0.0 build /Users/devzeal/Documents/Lamtoi/app-lamtoi/lamtoi-ecosystem/packages/modular
+> tsc -p tsconfig.json
+
