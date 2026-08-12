@@ -1,33 +1,54 @@
 import {
   DataSource,
-  EntitySchema,
   type DataSourceOptions,
   type MixedList,
 } from 'typeorm';
+import { TypeORMEntity, TypeORMMigration, TypeORMSubscriber } from './database.type';
 
 export class ConnectionManager {
   private readonly connections = new Map<string, DataSource>();
 
   private defaultConnection = 'default';
 
-  private readonly entities = new Map<
-    string,
-    MixedList<Function | string | EntitySchema>
-  >();
-
-  private readonly migrations = new Map<
-    string,
-    MixedList<Function | string>
-  >();
-
-  private readonly subscribers = new Map<
-    string,
-    MixedList<Function | string>
-  >();
+  private readonly entities = new Map<string, TypeORMEntity[]>();
+  private readonly migrations = new Map<string, TypeORMMigration[]>();
+  private readonly subscribers = new Map<string, TypeORMSubscriber[]>();
 
   setDefaultConnection(name: string) {
     this.defaultConnection = name;
     return this;
+  }
+
+  /**
+   * Normalize a mixed list to an array.
+   * @param value - The mixed list to normalize.
+   * @returns The array.
+   */
+  private normalize<T>(value: MixedList<T>): T[] {
+    if (Array.isArray(value)) {
+      return value;
+    }
+  
+    return Object.values(value);
+  }
+
+  /**
+   * Merge a mixed list into a map.
+   * @param map - The map to merge into.
+   * @param values - The values to merge.
+   * @param name - The name of the map.
+   */
+  private merge<T>(
+    map: Map<string, MixedList<T>>,
+    values: MixedList<T>,
+    name: string,
+  ) {
+    const current = map.get(name) ?? [];
+  
+    map.set(name, [
+      ...(current as T[]),
+      ...this.normalize(values),
+    ]);
   }
 
   /**
@@ -142,10 +163,10 @@ export class ConnectionManager {
    * @param name - The name of the connection.
    */
   setEntities(
-    entities: MixedList<Function | string | EntitySchema>,
+    entities: TypeORMEntity[],
     name: string = this.defaultConnection,
   ) {
-    this.entities.set(name, entities);
+    this.merge(this.entities, entities, name);
     return this;
   }
 
@@ -155,10 +176,10 @@ export class ConnectionManager {
    * @param name - The name of the migration.
    */
   setMigrations(
-    migrations: MixedList<Function | string>,
+    migrations: TypeORMMigration[],
     name: string = this.defaultConnection,
   ) {
-    this.migrations.set(name, migrations);
+    this.merge(this.migrations, migrations, name);
     return this;
   }
 
@@ -168,10 +189,10 @@ export class ConnectionManager {
    * @param name - The name of the subscriber.
    */
   setSubscribers(
-    subscribers: MixedList<Function | string>,
+    subscribers: TypeORMSubscriber[],
     name: string = this.defaultConnection,
   ) {
-    this.subscribers.set(name, subscribers);
+    this.merge(this.subscribers, subscribers, name);
     return this;
   }
 
@@ -182,7 +203,7 @@ export class ConnectionManager {
    */
   getEntities(
     name: string = this.defaultConnection,
-  ): MixedList<Function | string | EntitySchema> {
+  ): TypeORMEntity[] {
     return this.entities.get(name) ?? [];
   }
 
@@ -193,7 +214,7 @@ export class ConnectionManager {
    */
   getMigrations(
     name: string = this.defaultConnection,
-  ): MixedList<Function | string> {
+  ): TypeORMMigration[] {
     return this.migrations.get(name) ?? [];
   }
 
@@ -204,10 +225,11 @@ export class ConnectionManager {
    */
   getSubscribers(
     name: string = this.defaultConnection,
-  ): MixedList<Function | string> {
+  ): TypeORMSubscriber[] {
     return this.subscribers.get(name) ?? [];
   }
 }
 
 export const connectionManager =
   new ConnectionManager();
+  
