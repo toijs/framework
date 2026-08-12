@@ -23,8 +23,8 @@ export function TypeORMModule(launcher: Launcher): Module {
         ...(config as DataSourceOptions),
         entities,
       };
-      void connectionManager.create(connectionOptions);
-      void connectionManager.connect();
+      void connectionManager.create(name, connectionOptions);
+      void connectionManager.connect(name);
     }
   };
 
