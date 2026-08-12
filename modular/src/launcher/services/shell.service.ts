@@ -3,6 +3,8 @@ import { Task, TaskContext } from "../../task";
 import { METADATA_SHELL, TASK_ROOT_READY } from "../constants";
 
 export class Shell {
+  public readonly instance: unknown;
+
   constructor(private readonly task: Task, private readonly metadata: Metadata) {}
 
   /**
@@ -12,13 +14,14 @@ export class Shell {
   resolve() {
     return this.metadata.resolve(METADATA_SHELL);
   }
-
+  
   /**
    * Subscribe to the app create event
    * @param callback - The callback to subscribe to the app create event
    */
   async create(callback: () => unknown) {
     const instance = await callback();
+    this.instance = instance;
     this.metadata.define(METADATA_SHELL, instance);
     await this.task.invoke(TASK_ROOT_READY, instance);
   }

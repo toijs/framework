@@ -1,8 +1,9 @@
-import { DataSource, type DataSourceOptions } from "typeorm";
+import { DataSource, EntitySchema, type DataSourceOptions } from "typeorm";
 
 export class ConnectionManager {
   private connections: Map<string, DataSource> = new Map();
   private defaultConnection: string = 'default';
+  private entities: Map<string, EntitySchema[]> = new Map();
 
   async setDefaultConnection(name: string) {
     this.defaultConnection = name;
@@ -63,6 +64,25 @@ export class ConnectionManager {
    */
   async getAllConnections() {
     return Array.from(this.connections.values());
+  }
+
+  /**
+   * Register an entity.
+   * @param entity - The entity to register.
+   * @param name - The name of the entity.
+   */
+  async setEntities(entities: EntitySchema[], name: string = this.defaultConnection) {
+    this.entities.set(name, entities);
+    return this;
+  }
+
+  /**
+   * Get all entities.
+   * @param name - The name of the connection.
+   * @returns All entities.
+   */
+  getEntities(name: string = this.defaultConnection): EntitySchema[] {
+    return Array.from(this.entities.get(name)?.values() || []);
   }
 }
 

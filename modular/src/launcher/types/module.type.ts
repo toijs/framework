@@ -15,10 +15,17 @@ export type Module = {
 };
 
 /**
+ * A factory function that creates a module
+ * @param launcher - The launcher instance
+ * @returns The module instance
+ */
+export type ModuleFactory = (launcher: Launcher) => Module;
+
+/**
  * The options for the start function
  * @typedef {Object} StartOptions
  * @param modules - The modules to start
  */
 export type StartOptions = {
-  modules: ((launcher: Launcher) => Module)[];
+  modules: ModuleFactory[];
 };
