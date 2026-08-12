@@ -1,5 +1,6 @@
 import type { Module, Launcher } from "@toijs/modular";
-import { ConnectionManager, connectionManager } from "@toijs/typeorm";
+import { EVENT_DATABASE_CONNECTED, EVENT_DATABASE_ERROR } from "./database.constant";
+import { connectionManager, ConnectionManager } from "./connection-manager";
 import type { DataSourceOptions } from "typeorm";
 
 /**
@@ -14,12 +15,25 @@ export function TypeORMModule(launcher: Launcher): Module {
     useValue: connectionManager,
   });
 
-  const register = () => {
+  const register = async () => {
     const databaseConfig = launcher.config.resolve("database") as Record<string, DataSourceOptions>;
 
-    for (const [name, config] of Object.entries(databaseConfig)) {
-      void connectionManager.connect(name, config);
-    }
+    await Promise.all(
+      Object.entries(databaseConfig).map(async ([name, config]) => {
+        try {
+          await connectionManager.connect(name, config);
+    
+          launcher.task.invoke(EVENT_DATABASE_CONNECTED, name);
+    
+          return;
+        } catch (error) {
+          launcher.task.invoke(EVENT_DATABASE_ERROR, {
+            name,
+            error,
+          });
+        }
+      }),
+    );
   };
 
   return {
