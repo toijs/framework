@@ -1,4 +1,4 @@
-import { DataSource, EntitySchema, type DataSourceOptions } from "typeorm";
+import { DataSource, type EntitySchema, type DataSourceOptions } from "typeorm";
 
 export class ConnectionManager {
   private connections: Map<string, DataSource> = new Map();
@@ -71,7 +71,7 @@ export class ConnectionManager {
    * @param entity - The entity to register.
    * @param name - The name of the entity.
    */
-  async setEntities(entities: EntitySchema[], name: string = this.defaultConnection) {
+  setEntities(entities: EntitySchema[], name: string = this.defaultConnection) {
     this.entities.set(name, entities);
     return this;
   }

@@ -1,6 +1,6 @@
 {
   "name": "@toijs/typeorm",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": false,
   "type": "module",
   "description": "TypeORM integration for @toijs/modular (DataSource, MySQL helpers, module)",
@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@toijs/modular": "^1.0.0",
+    "@toijs/typeorm": "link:",
     "mysql2": "^3.23.2",
     "typeorm": "^1.1.0"
   },
