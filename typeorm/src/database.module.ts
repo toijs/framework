@@ -18,8 +18,7 @@ export function TypeORMModule(launcher: Launcher): Module {
     const databaseConfig = launcher.config.resolve("database") as Record<string, DataSourceOptions>;
 
     for (const [name, config] of Object.entries(databaseConfig)) {
-      void connectionManager.create(name, config);
-      void connectionManager.connect(name);
+      void connectionManager.connect(name, config);
     }
   };
 

@@ -3,16 +3,15 @@ import {
   type DataSourceOptions,
   type MixedList,
 } from 'typeorm';
-import { TypeORMEntity, TypeORMMigration, TypeORMSubscriber } from './database.type';
+import { TypeORMEntity, TypeORMMigration, TypeORMSubscriber, TypeORMSeed } from './database.type';
 
 export class ConnectionManager {
-  private readonly connections = new Map<string, DataSource>();
-
   private defaultConnection = 'default';
-
+  private readonly connections = new Map<string, DataSource>();
   private readonly entities = new Map<string, TypeORMEntity[]>();
   private readonly migrations = new Map<string, TypeORMMigration[]>();
   private readonly subscribers = new Map<string, TypeORMSubscriber[]>();
+  private readonly seeds = new Map<string, TypeORMSeed[]>();
 
   setDefaultConnection(name: string) {
     this.defaultConnection = name;
@@ -57,7 +56,7 @@ export class ConnectionManager {
    * @param options - The options for the connection.
    * @returns The connection.
    */
-  async create(
+  async connect(
     name: string | DataSourceOptions,
     options?: DataSourceOptions,
   ) {
@@ -89,30 +88,9 @@ export class ConnectionManager {
 
     this.connections.set(connName, connection);
 
-    return connection;
-  }
+    await connection.initialize();
 
-  /**
-   * Connect to a connection.
-   * @param name - The name of the connection.
-   * @returns The connection.
-   */
-  async connect(
-    name: string = this.defaultConnection,
-  ) {
-    const connection = this.connections.get(name);
-
-    if (!connection) {
-      throw new Error(
-        `Connection "${name}" not found`,
-      );
-    }
-
-    if (!connection.isInitialized) {
-      await connection.initialize();
-    }
-
-    return connection;
+    return this;
   }
 
   /**
@@ -126,7 +104,7 @@ export class ConnectionManager {
     const connection = this.connections.get(name);
 
     if (!connection) {
-      return;
+      return this;
     }
 
     if (connection.isInitialized) {
@@ -134,6 +112,8 @@ export class ConnectionManager {
     }
 
     this.connections.delete(name);
+
+    return this;
   }
 
   /**
@@ -184,6 +164,19 @@ export class ConnectionManager {
   }
 
   /**
+   * Register a seed.
+   * @param seed - The seed to register.
+   * @param name - The name of the seed.
+   */
+  setSeeds(
+    seeds: TypeORMSeed[],
+    name: string = this.defaultConnection,
+  ) {
+    this.merge(this.seeds, seeds, name);
+    return this;
+  }
+
+  /**
    * Register a subscriber.
    * @param subscriber - The subscriber to register.
    * @param name - The name of the subscriber.
@@ -219,6 +212,17 @@ export class ConnectionManager {
   }
 
   /**
+   * Get all seeds.
+   * @param name - The name of the connection.
+   * @returns All seeds.
+   */
+  getSeeds(
+    name: string = this.defaultConnection,
+  ): TypeORMSeed[] {
+    return this.seeds.get(name) ?? [];
+  }
+
+  /**
    * Get all subscribers.
    * @param name - The name of the connection.
    * @returns All subscribers.
@@ -228,8 +232,60 @@ export class ConnectionManager {
   ): TypeORMSubscriber[] {
     return this.subscribers.get(name) ?? [];
   }
+
+  /**
+   * Run seeds.
+   * @param name - The name of the connection.
+   * @returns The connection.
+   */
+  async seed(
+    command: "run" | "revert",
+    name: string = this.defaultConnection
+  ) {
+    const connection = this.getConnection(name);
+
+    if (!connection) {
+      throw new Error(
+        `Connection "${name}" not found`,
+      );
+    }
+
+    const seeds = this.getSeeds(name);
+
+    for (const seed of seeds) {
+      const seedInstance = new (seed as any)();
+      if (command == "run") await seedInstance.run(connection.createQueryRunner());
+      else if (command == "revert") await seedInstance.revert(connection.createQueryRunner());
+      else throw new Error(`Invalid command: ${command}`);
+    }
+
+    return this;
+  }
+
+  /**
+   * Run migrations.
+   * @param name - The name of the connection.
+   * @returns The connection.
+   */
+  async migrate(
+    command: "up" | "down",
+    name: string = this.defaultConnection
+  ) {
+    const connection = this.getConnection(name);
+
+    if (!connection) {
+      throw new Error(
+        `Connection "${name}" not found`,
+      );
+    }
+
+    if (command == "up") await connection.runMigrations();
+    else if (command == "down") await connection.undoLastMigration();
+    else throw new Error(`Invalid command: ${command}`);
+
+    return this;
+  }
 }
 
 export const connectionManager =
   new ConnectionManager();
-  
