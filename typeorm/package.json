@@ -1,7 +1,7 @@
 {
   "name": "@toijs/typeorm",
   "version": "1.0.0",
-  "private": true,
+  "private": false,
   "type": "module",
   "description": "TypeORM integration for @toijs/modular (DataSource, MySQL helpers, module)",
   "main": "dist/index.js",
@@ -20,10 +20,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "tsc -p tsconfig.json --watch"
   },
-  "peerDependencies": {
-    "@toijs/modular": "*"
-  },
   "dependencies": {
+    "@toijs/modular": "^1.0.0",
     "mysql2": "^3.23.2",
     "typeorm": "^1.1.0"
   },
