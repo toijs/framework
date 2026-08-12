@@ -1,60 +1,128 @@
-import { DataSource, type EntitySchema, type DataSourceOptions } from "typeorm";
+import {
+  DataSource,
+  EntitySchema,
+  type DataSourceOptions,
+  type MixedList,
+} from 'typeorm';
 
 export class ConnectionManager {
-  private connections: Map<string, DataSource> = new Map();
-  private defaultConnection: string = 'default';
-  private entities: Map<string, EntitySchema[]> = new Map();
+  private readonly connections = new Map<string, DataSource>();
 
-  async setDefaultConnection(name: string) {
+  private defaultConnection = 'default';
+
+  private readonly entities = new Map<
+    string,
+    MixedList<Function | string | EntitySchema>
+  >();
+
+  private readonly migrations = new Map<
+    string,
+    MixedList<Function | string>
+  >();
+
+  private readonly subscribers = new Map<
+    string,
+    MixedList<Function | string>
+  >();
+
+  setDefaultConnection(name: string) {
     this.defaultConnection = name;
+    return this;
   }
 
   /**
-   * Create a new connection.
+   * Create a connection.
    * @param name - The name of the connection.
    * @param options - The options for the connection.
+   * @returns The connection.
    */
-  async create(name: string | DataSourceOptions, options?: DataSourceOptions) {
-    let connName = null;
-    let connOptions = options;
+  async create(
+    name: string | DataSourceOptions,
+    options?: DataSourceOptions,
+  ) {
+    const connName = options
+      ? (name as string)
+      : this.defaultConnection;
 
-    if (!connOptions) {
-      connOptions = name as DataSourceOptions;
-      connName = this.defaultConnection;
-    } else {
-      connName = name as string;
+    const baseOptions = options
+      ? options
+      : (name as DataSourceOptions);
+
+    const connOptions: DataSourceOptions = {
+      ...baseOptions,
+
+      entities:
+        baseOptions.entities ??
+        this.getEntities(connName),
+
+      migrations:
+        baseOptions.migrations ??
+        this.getMigrations(connName),
+
+      subscribers:
+        baseOptions.subscribers ??
+        this.getSubscribers(connName),
+    };
+
+    const connection = new DataSource(connOptions);
+
+    this.connections.set(connName, connection);
+
+    return connection;
+  }
+
+  /**
+   * Connect to a connection.
+   * @param name - The name of the connection.
+   * @returns The connection.
+   */
+  async connect(
+    name: string = this.defaultConnection,
+  ) {
+    const connection = this.connections.get(name);
+
+    if (!connection) {
+      throw new Error(
+        `Connection "${name}" not found`,
+      );
     }
 
-    const conn = new DataSource(connOptions); 
-    this.connections.set(connName, conn);
-    
-    return conn;
+    if (!connection.isInitialized) {
+      await connection.initialize();
+    }
+
+    return connection;
   }
 
   /**
-   * Get a connection by name.
+   * Close a connection.
    * @param name - The name of the connection.
    * @returns The connection.
    */
-  async connect(name: string = this.defaultConnection) {
-    return this.connections.get(name)?.initialize();
+  async close(
+    name: string = this.defaultConnection,
+  ) {
+    const connection = this.connections.get(name);
+
+    if (!connection) {
+      return;
+    }
+
+    if (connection.isInitialized) {
+      await connection.destroy();
+    }
+
+    this.connections.delete(name);
   }
 
   /**
-   * Close a connection by name.
-   * @param name - The name of the connection.
-   */
-  async close(name: string = this.defaultConnection) {
-    await this.connections.get(name)?.destroy();
-    await this.connections.delete(name);
-  }
-
-  /**
-   * Get a connection by name.
+   * Get a connection.
    * @param name - The name of the connection.
    * @returns The connection.
    */
-  async getConnection(name: string = this.defaultConnection) {
+  getConnection(
+    name: string = this.defaultConnection,
+  ) {
     return this.connections.get(name);
   }
 
@@ -62,17 +130,48 @@ export class ConnectionManager {
    * Get all connections.
    * @returns All connections.
    */
-  async getAllConnections() {
-    return Array.from(this.connections.values());
+  getAllConnections() {
+    return Array.from(
+      this.connections.values(),
+    );
   }
 
   /**
-   * Register an entity.
-   * @param entity - The entity to register.
-   * @param name - The name of the entity.
+   * Register entities.
+   * @param entities - The entities to register.
+   * @param name - The name of the connection.
    */
-  setEntities(entities: EntitySchema[], name: string = this.defaultConnection) {
+  setEntities(
+    entities: MixedList<Function | string | EntitySchema>,
+    name: string = this.defaultConnection,
+  ) {
     this.entities.set(name, entities);
+    return this;
+  }
+
+  /**
+   * Register a migration.
+   * @param migration - The migration to register.
+   * @param name - The name of the migration.
+   */
+  setMigrations(
+    migrations: MixedList<Function | string>,
+    name: string = this.defaultConnection,
+  ) {
+    this.migrations.set(name, migrations);
+    return this;
+  }
+
+  /**
+   * Register a subscriber.
+   * @param subscriber - The subscriber to register.
+   * @param name - The name of the subscriber.
+   */
+  setSubscribers(
+    subscribers: MixedList<Function | string>,
+    name: string = this.defaultConnection,
+  ) {
+    this.subscribers.set(name, subscribers);
     return this;
   }
 
@@ -81,9 +180,34 @@ export class ConnectionManager {
    * @param name - The name of the connection.
    * @returns All entities.
    */
-  getEntities(name: string = this.defaultConnection): EntitySchema[] {
-    return Array.from(this.entities.get(name)?.values() || []);
+  getEntities(
+    name: string = this.defaultConnection,
+  ): MixedList<Function | string | EntitySchema> {
+    return this.entities.get(name) ?? [];
+  }
+
+  /**
+   * Get all migrations.
+   * @param name - The name of the connection.
+   * @returns All migrations.
+   */
+  getMigrations(
+    name: string = this.defaultConnection,
+  ): MixedList<Function | string> {
+    return this.migrations.get(name) ?? [];
+  }
+
+  /**
+   * Get all subscribers.
+   * @param name - The name of the connection.
+   * @returns All subscribers.
+   */
+  getSubscribers(
+    name: string = this.defaultConnection,
+  ): MixedList<Function | string> {
+    return this.subscribers.get(name) ?? [];
   }
 }
 
-export const connectionManager = new ConnectionManager();
+export const connectionManager =
+  new ConnectionManager();
