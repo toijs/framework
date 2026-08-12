@@ -15,13 +15,17 @@ export function TypeORMModule(launcher: Launcher): Module {
   });
 
   const register = () => {
-    const databaseConfig = launcher.config.resolve("database");
-    const connectionOptions = {
-      ...(databaseConfig as DataSourceOptions),
-      entities: connectionManager.getEntities(),
-    };
-    void connectionManager.create(connectionOptions);
-    void connectionManager.connect();
+    const databaseConfig = launcher.config.resolve("database") as Record<string, DataSourceOptions>;
+
+    for (const [name, config] of Object.entries(databaseConfig)) {
+      const entities = connectionManager.getEntities(name);
+      const connectionOptions = {
+        ...(config as DataSourceOptions),
+        entities,
+      };
+      void connectionManager.create(connectionOptions);
+      void connectionManager.connect();
+    }
   };
 
   return {
