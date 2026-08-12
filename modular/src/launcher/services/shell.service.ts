@@ -1,18 +1,18 @@
 import { Metadata } from "../../metadata";
 import { Task, TaskContext } from "../../task";
-import { METADATA_SHELL, TASK_ROOT_READY } from "../constants";
+import { TASK_ROOT_READY } from "../constants";
 
 export class Shell {
-  public readonly instance: unknown;
+  private instance: unknown;
 
   constructor(private readonly task: Task, private readonly metadata: Metadata) {}
 
   /**
-   * Resolve the app instance
+   * Get the app instance
    * @returns The app instance
    */
-  resolve() {
-    return this.metadata.resolve(METADATA_SHELL);
+  getInstance() {
+    return this.instance;
   }
   
   /**
@@ -22,7 +22,6 @@ export class Shell {
   async create(callback: () => unknown) {
     const instance = await callback();
     this.instance = instance;
-    this.metadata.define(METADATA_SHELL, instance);
     await this.task.invoke(TASK_ROOT_READY, instance);
   }
 
