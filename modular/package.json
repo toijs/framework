@@ -1,6 +1,6 @@
 {
   "name": "@toijs/modular",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": false,
   "type": "module",
   "description": "Lamtoi modular core (launcher, metadata, config, task, router)",
