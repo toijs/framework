@@ -9,6 +9,7 @@ import { Launcher } from "../services";
  */
 export type Module = {
   name: string;
+  dependencies?: ModuleFactory[];
   prepare?: () => void;
   register?: () => void;
   ready?: () => void;

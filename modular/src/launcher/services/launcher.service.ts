@@ -14,7 +14,7 @@ export class Launcher {
   public options: StartOptions = {
     modules: [] as ModuleFactory[],
   } as StartOptions;
-  public instances: Module[] = [];
+  public instances: Map<string, Module> = new Map();
 
   constructor() {
     this.container = new Container();
@@ -84,6 +84,33 @@ export class Launcher {
   }
 
   /**
+   * Resolve the module instances
+   * @param modules - The modules to resolve
+   * @returns The module instances
+   */
+  private async resolveModuleInstances(modules: ModuleFactory[], instances: Module[] = []) {
+    for (const module of modules) {
+      const moduleInstance = module(this);
+
+      // If the module is already registered, skip it
+      if (this.instances.has(moduleInstance.name) || !moduleInstance.name) {
+        continue;
+      }
+
+      // Register the module instance
+      this.instances.set(moduleInstance.name, moduleInstance);
+      instances.push(moduleInstance);
+
+      // Resolve the module instances
+      if (moduleInstance.dependencies) {
+        instances = await this.resolveModuleInstances(moduleInstance.dependencies, instances);
+      }
+    }
+
+    return instances;
+  }
+
+  /**
    * Start the application
    */
   async start() {
@@ -91,20 +118,17 @@ export class Launcher {
       throw new Error("No modules registered");
     }
 
-    for (const module of this.options.modules) {
-      const moduleInstance = module(this);
-      this.instances.push(moduleInstance);
-    }
+    let instances: Module[] = await this.resolveModuleInstances(this.options.modules);
 
-    for (const instance of this.instances) {
+    for (const instance of instances) {
       instance.prepare?.();
     }
 
-    for (const instance of this.instances) {
+    for (const instance of instances) {
       instance.register?.();
     }
 
-    for (const instance of this.instances) {
+    for (const instance of instances) {
       instance.ready?.();
     }
   }
