@@ -121,11 +121,11 @@ export class Launcher {
     let instances: Module[] = await this.resolveModuleInstances(this.options.modules);
 
     for (const instance of instances) {
-      instance.prepare?.();
+      await instance.prepare?.();
     }
 
     for (const instance of instances) {
-      instance.register?.();
+      await instance.register?.();
     }
 
     for (const instance of instances) {

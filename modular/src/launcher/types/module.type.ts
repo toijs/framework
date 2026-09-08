@@ -10,9 +10,9 @@ import { Launcher } from "../services";
 export type Module = {
   name: string;
   dependencies?: ModuleFactory[];
-  prepare?: () => void;
-  register?: () => void;
-  ready?: () => void;
+  prepare?: () => void | Promise<void>;
+  register?: () => void | Promise<void>;
+  ready?: () => void | Promise<void>;
 };
 
 /**

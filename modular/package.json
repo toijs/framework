@@ -1,9 +1,30 @@
 {
   "name": "@toijs/modular",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "private": false,
   "type": "module",
-  "description": "Lamtoi modular core (launcher, metadata, config, task, router)",
+  "description": "TypeScript module system and explicit dependency injection container for Node.js applications",
+  "keywords": [
+    "nodejs",
+    "typescript",
+    "dependency-injection",
+    "di",
+    "container",
+    "module",
+    "modular",
+    "ioc",
+    "composition",
+    "launcher"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/toijs/framework.git",
+    "directory": "modular"
+  },
+  "homepage": "https://github.com/toijs/framework/tree/develop/modular",
+  "bugs": {
+    "url": "https://github.com/toijs/framework/issues"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
