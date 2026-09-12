@@ -1,5 +1,5 @@
 {
-  "name": "@toijs/graphql",
+  "name": "@toijs/graphql-server",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -24,6 +24,7 @@
     "@toijs/modular": "*"
   },
   "dependencies": {
+    "graphql": "^16.14.2"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
