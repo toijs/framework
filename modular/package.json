@@ -1,10 +1,12 @@
 {
   "name": "@toijs/modular",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "private": false,
   "type": "module",
-  "description": "TypeScript module system and explicit dependency injection container for Node.js applications",
+  "description": "Isomorphic TypeScript composition pattern: modules, explicit DI, and Shell for Node.js and browser apps (Express, Vue, React, …)",
   "keywords": [
+    "isomorphic",
+    "browser",
     "nodejs",
     "typescript",
     "dependency-injection",
@@ -14,7 +16,8 @@
     "modular",
     "ioc",
     "composition",
-    "launcher"
+    "launcher",
+    "shell"
   ],
   "repository": {
     "type": "git",

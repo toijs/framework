@@ -1,1 +1,1 @@
-export * from "./connection-manager";
+export * from "./graphql.module";

@@ -4,12 +4,15 @@ description: >-
   Build apps with @toijs/modular: Launcher, Module factories, Container DI
   (@Injectable), Task, Config, Metadata, Shell. Use when creating or editing
   modules, bootstrapping API/web apps, registering providers, or wiring
-  launcher.task / launcher.config / launcher.shell.
+  launcher.task / launcher.config / launcher.shell. Isomorphic pattern for
+  Node.js server and browser clients with Express / Vue / React shells.
 ---
 
 # @toijs/modular
 
-Lamtoi composition root. **Not NestJS.** There is no `@Module()`, no `imports` array, no constructor param reflection.
+Lamtoi **composition pattern** (not a framework). Same API on **Node.js server** and **browser client**. Host frameworks (Express, Vue, React, …) plug in via **Shell** kits — modular never embeds HTTP or UI.
+
+**Not NestJS.** There is no `@Module()`, no `imports` array, no constructor param reflection.
 
 Types and implementation: `@toijs/modular/src/{launcher,di,task,config,metadata}`.
 
@@ -19,22 +22,22 @@ Database work: read `toijs-typeorm` **before** writing entities, repos, or `Type
 
 | Need | Use |
 |------|-----|
-| App bootstrap | `new Launcher().modules([...]).start()` |
+| App bootstrap | `await new Launcher().modules([...]).start()` |
 | Feature / lib wiring | `ModuleFactory` → `{ name, prepare, register, ready }` |
 | Services, repos, controllers | `launcher.container` + `@Injectable([tokens])` |
 | Cross-module events | `launcher.task.subscribe` / `invoke` |
 | App settings | `launcher.config.define` / `resolve("dot.path")` |
 | Shared runtime bag | `launcher.metadata.define` / `resolve` / `subscribe` |
-| Express / Vue instance | `launcher.shell.create` / `register` / `ready` |
+| Express / Vue / React host | `launcher.shell.create` / `register` / `ready` |
 
 ## Bootstrap
 
-Always import `@/required` first (reflect-metadata, dotenv). Then:
+Always import `@/required` first (reflect-metadata, dotenv) in Node apps. Then:
 
 ```ts
 import { Launcher } from "@toijs/modular";
 
-void new Launcher()
+await new Launcher()
   .modules([ConfigModule, /* kits */, /* features */])
   .start();
 ```
@@ -61,12 +64,18 @@ export function AuthModule(launcher: Launcher): Module {
 | Field | When |
 |-------|------|
 | factory body | Runs during resolve (before any hook). Use for `config.define`, `setEntities`, `container.register` of singletons other modules need immediately |
-| `prepare` | Subscribe tasks, register DI classes, define routes, i18n, layout |
-| `register` | Create the host app (`shell.create`) |
-| `ready` | After host exists (rarely used; prefer `shell.ready`) |
+| `prepare` | Subscribe tasks, register DI classes, define routes, i18n, layout — **awaited** by `start()` |
+| `register` | Create the host (`shell.create`) — **awaited**; must **return** the create promise |
+| `ready` | After host exists — **not** awaited (fire-and-forget); prefer `shell.ready` for host work |
 | `dependencies` | Extra `ModuleFactory[]` resolved first |
 
-`start()` **awaits** `prepare*` then `register*` in order. `ready*` is fire-and-forget (not awaited).
+### `start()` lifecycle
+
+```text
+resolve factories → await prepare* → await register* → ready* (not awaited)
+```
+
+Hooks are `() => void | Promise<void>`. Return promises from `prepare` / `register` when async work must finish before the next phase.
 
 ### Names
 
@@ -81,25 +90,39 @@ Export `FooModule` from the feature `index.ts`. Pass the factory (not an instanc
 
 ## Lifecycle vs Shell
 
+Modular is isomorphic; **kits** choose the shell:
+
+| Side | Kit | `shell.create` returns |
+|------|-----|------------------------|
+| Server | `ExpressKitModule` | Express app |
+| Browser | `VueKitModule` (or a React kit) | Vue `App` / React root |
+| Worker / CLI | none | skip Shell |
+
 Kits own the host. Feature modules **subscribe**; they do not call `shell.create`.
 
 ```
-resolve factories → prepare* → register* → ready*
+resolve factories → await prepare* → await register* → ready*
 ```
 
 `Shell.create(fn)` sets the instance, then invokes:
 
-1. `task.root.register` — `shell.register(cb)` (`context.data` is Express or Vue `App`)
+1. `task.root.register` — `shell.register(cb)` (`context.data` is Express, Vue `App`, React root, …)
 2. `task.root.ready` — `shell.ready(cb)`
 
-API (`ExpressKitModule`): `register` → `shell.create(() => express())`; `prepare` wires `shell.register` (router) and `shell.ready` (listen).
+API (`ExpressKitModule`): `prepare` wires `shell.register` (router) and `shell.ready` (listen); `register` **returns** `shell.create(() => express())`.
 
-Web (`VueKitModule`): `register` → `shell.create` (Vue app + `provide` launcher); `prepare` wires `shell.register` (router). Features use `shell.ready` for Pinia / Toife.
+Web (`VueKitModule`): `prepare` wires `shell.register` (router); `register` **returns** `shell.create` (Vue app + `provide` launcher). Features use `shell.ready` for Pinia / Toife / mount.
 
 ```ts
 launcher.shell.ready((context: TaskContext) => {
   (context.data as App).use(createPinia());
 });
+```
+
+Kit `register` must return the create promise:
+
+```ts
+const register = () => launcher.shell.create(() => createApp());
 ```
 
 Vue components: `useLauncher` / `useTask` / `useMetadata` from `@toijs/vue-kit` (inject). Do not import a global launcher.
@@ -211,6 +234,8 @@ Throws if the property already exists.
 - Write NestJS `@Module({ imports, providers, controllers })`.
 - Use `@Injectable()` without `[tokens]` when the constructor has deps.
 - Call `shell.create` from a feature — kits own the host.
-- Treat `prepare`/`register` as fire-and-forget — `start()` awaits them. `ready` is not awaited.
+- Fire-and-forget `shell.create` inside `register` — **return** the promise so `start()` awaits the host.
+- Assume `ready` is awaited — it is not; use `prepare`/`register` for ordered async.
 - Duplicate module `name`s and expect both to run.
 - Read `config` in another module's factory body unless `ConfigModule` is listed first (and defines in **its** factory body).
+- Treat modular as Node-only — browser SPAs use the same pattern with a UI shell kit.

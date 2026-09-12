@@ -1,7 +1,6 @@
 # @toijs/modular
 
-Compose TypeScript applications with modules, explicit dependency injection, and a small runtime.
-
+Compose TypeScript applications with an isomorphic module pattern, explicit DI, and Shell — on Node.js and in the browser.
 [![npm version](https://img.shields.io/npm/v/@toijs/modular.svg)](https://www.npmjs.com/package/@toijs/modular)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6.svg)](https://www.typescriptlang.org/)
 [![ESM](https://img.shields.io/badge/module-ESM-brightgreen.svg)](https://nodejs.org/api/esm.html)
@@ -9,16 +8,15 @@ Compose TypeScript applications with modules, explicit dependency injection, and
 
 ## Overview
 
-`@toijs/modular` is a composition layer for TypeScript applications. It provides a module factory, a dependency injection container, a bootstrap lifecycle, and a small set of runtime services (`Task`, `Config`, `Metadata`, `Shell`).
+`@toijs/modular` is an isomorphic **composition pattern** for TypeScript: modules, explicit dependency injection, a bootstrap lifecycle, and a small runtime (`Task`, `Config`, `Metadata`, `Shell`). Use it on **Node.js servers** and in **browser clients**. App hosts (Express, Vue, React, …) plug in through **Shell** kits — this package never embeds HTTP or UI.
 
-It does **not** include HTTP, routing, validation, GraphQL, or an ORM. Those belong in the application or in separate kits such as `@toijs/express-kit` and `@toijs/typeorm`.
+It does **not** include HTTP, routing, validation, GraphQL, an ORM, or a renderer. Those belong in the application or in separate kits such as `@toijs/express-kit`, `@toijs/vue-kit`, and `@toijs/typeorm`.
 
 ## Why @toijs/modular?
 
-Most TypeScript backends either assemble everything by hand or adopt a full platform such as NestJS. `@toijs/modular` sits between those options: you get modules and DI without inheriting an HTTP server, a CLI, or a decorator-heavy application model.
+Most TypeScript backends either assemble everything by hand or adopt a full platform such as NestJS. Frontends often wire Pinia/Vuex/React context ad hoc. `@toijs/modular` sits between those options: one composition model for server and client, without inheriting an HTTP server, a CLI, or a decorator-heavy application model.
 
 Constructor dependencies are **explicit**. `@Injectable([UserRepository])` does not read `design:paramtypes`. That is intentional — the container never infers tokens from TypeScript types.
-
 ## Features
 
 Implemented in this package:
@@ -28,11 +26,11 @@ Implemented in this package:
 - **Explicit tokens** — `@Injectable([tokens])`, `@Inject(token)`, `@Optional()`
 - **Scopes** — `singleton` (default) and `transient` on class and factory providers
 - **Parent/child containers** — `container.createChild()`
-- **Lifecycle** — resolve factories, then `prepare` → `register` → `ready`
+- **Lifecycle** — resolve factories, then `await prepare` → `await register` → `ready` (not awaited)
 - **Task bus** — `subscribe` / `invoke` (`sequential` or `parallel`)
 - **Config** — nested values via dot paths on a metadata-backed store
-- **Shell** — host-app bootstrap (`create` / `register` / `ready`) used by kits
-
+- **Shell** — host-app bootstrap (`create` / `register` / `ready`) for Express, Vue, React, … kits
+- **Isomorphic** — same pattern on Node.js server and browser client
 Not in this package:
 
 - HTTP server, router, controllers as a framework primitive
@@ -117,9 +115,9 @@ Optional fields:
 | --- | --- |
 | `name` | Required identity. Duplicate names are **skipped**. Empty names are skipped. |
 | `dependencies` | Extra `ModuleFactory[]` resolved after this module is recorded |
-| `prepare` | Register providers, subscribe to tasks, define routes in a kit |
-| `register` | Create the host (`shell.create`) — used by kits, not feature modules |
-| `ready` | After register; often unused in features |
+| `prepare` | Register providers, subscribe to tasks, define routes in a kit — **awaited** |
+| `register` | Create the host (`shell.create`) — **awaited**; kits must **return** the create promise |
+| `ready` | After register — **not** awaited; often unused in features |
 
 The factory body runs during resolve, **before** any lifecycle hook. Put `config.define` there so later factories can read config.
 
@@ -207,32 +205,31 @@ launcher.container.register(ReportService);
 
 ## Lifecycle
 
-`Launcher.start()`:
+`await Launcher.start()`:
 
 ```text
 resolve factories (and `dependencies`)
         ↓
-     prepare()   × all modules   (not awaited)
+await prepare()   × all modules
         ↓
-     register()  × all modules   (not awaited)
+await register()  × all modules
         ↓
-     ready()     × all modules   (not awaited)
+     ready()      × all modules   (not awaited)
 ```
 
-Hooks are typed as `() => void`. Async functions are allowed by TypeScript but **`start()` does not await them**. Sequence async work with `launcher.task.subscribe` / `invoke` (this is how `@toijs/typeorm` signals `event.database.connected`).
+Hooks are `() => void | Promise<void>`. `start()` **awaits** `prepare` and `register` sequentially. **`ready` is not awaited.** Kits that create a host must **return** `shell.create(...)` from `register` so bootstrap waits for the host and `task.root.register` / `task.root.ready`.
 
-`Shell` is a second, host-specific flow used by kits:
+`Shell` is the second, host-specific flow used by app-shell kits (Express, Vue, React, …):
 
 ```text
-shell.create(fn)
+await shell.create(fn)
         ↓
-invoke "task.root.register"
+await invoke "task.root.register"
         ↓
-invoke "task.root.ready"
+await invoke "task.root.ready"
 ```
 
-Feature modules subscribe with `shell.register` / `shell.ready`. They should not call `shell.create`.
-
+Feature modules subscribe with `shell.register` / `shell.ready`. They should not call `shell.create`. The same modular pattern runs on Node.js and in the browser; only the kit (shell) changes.
 ## Application composition
 
 ```ts
@@ -291,23 +288,22 @@ Launcher
  ├── task        named handler bus
  ├── metadata    key/value + change events
  ├── config      metadata-backed settings (dot paths)
- └── shell       host instance (Express, Vue, …)
+ └── shell       host instance (Express, Vue, React, …)
 
 Module factory
  ├── factory body     runs at resolve time
- ├── prepare
- ├── register
- └── ready
+ ├── prepare          awaited by start()
+ ├── register         awaited by start()
+ └── ready            not awaited
 ```
 
-Keep domain types and business logic as plain TypeScript. Depend on `@toijs/modular` only at the composition root (modules, `@Injectable`, `container.register`).
-
+Keep domain types and business logic as plain TypeScript. Depend on `@toijs/modular` only at the composition root (modules, `@Injectable`, `container.register`). Same pattern on server and browser; kits supply the app shell.
 ## Use cases
 
 Fits:
 
 - API process composed with a kit such as `@toijs/express-kit`
-- Vue SPA composed with `@toijs/vue-kit`
+- Vue / React SPA composed with a UI kit (`@toijs/vue-kit` or equivalent)
 - CLI / batch scripts that need modules + DI
 - Long-running workers, if **you** wire the consumer (no SQS adapter ships here)
 - Lambda handlers, if **you** bootstrap `Launcher` per cold start (no Lambda adapter ships here)
@@ -325,16 +321,16 @@ Does not fit as a drop-in:
 | --- | --- | --- |
 | DI | Explicit tokens, class/value/factory/existing | Reflection + tokens, large provider model |
 | Module | Function factory | `@Module()` class |
-| Lifecycle | `prepare` → `register` → `ready` (sync call, not awaited) | Nest lifecycle hooks |
-| HTTP | Not included | First-class |
+| Lifecycle | `await prepare` → `await register` → `ready` (not awaited) | Nest lifecycle hooks |
+| HTTP / UI | Not included — Shell + kits (Express, Vue, React, …) | First-class HTTP |
+| Runtime | Node.js and browser | Primarily Node.js |
 | CLI | Not included | `@nestjs/cli` |
 | ORM | Separate `@toijs/typeorm` | Separate `@nestjs/typeorm` etc. |
 | Lambda / worker | Usable; no official adapter | Usable; larger bootstrap |
 | Ecosystem | Small (`typeorm`, private kits) | Large |
 | Learning curve | Small API, unusual module shape | Large API, more tutorials |
 
-Use NestJS when you want a platform. Use `@toijs/modular` when you want composition and DI without that platform.
-
+Use NestJS when you want a platform. Use `@toijs/modular` when you want isomorphic composition and DI without that platform.
 A longer comparison with Effect and plain Node.js is in [docs/guides/comparison.md](docs/guides/comparison.md).
 
 ## API overview
@@ -356,14 +352,13 @@ A longer comparison with Effect and plain Node.js is in [docs/guides/comparison.
 
 | Package | Status | Role |
 | --- | --- | --- |
-| `@toijs/modular` | v1.0.3, `private: false` | Core |
+| `@toijs/modular` | v1.0.4, `private: false` | Core (isomorphic composition) |
 | `@toijs/typeorm` | v1.0.7, `private: false` | `TypeORMModule`, `ConnectionManager` |
-| `@toijs/express-kit` | `private: true` | Express `shell.create` + router |
-| `@toijs/vue-kit` | `private: true` | Vue `shell.create` + router |
+| `@toijs/express-kit` | `private: true` | Express `shell.create` + router (server shell) |
+| `@toijs/vue-kit` | `private: true` | Vue `shell.create` + router (browser shell) |
 | `@toijs/graphql` | `private: true` | Stub — do not treat as shipped |
 
-HTTP, Vue, i18n, layout, and device kits live outside this package. They are not required to use the container.
-
+HTTP, Vue, React, i18n, layout, and device kits live outside this package. They are not required to use the container.
 ## Documentation
 
 - [Documentation index](docs/README.md)
@@ -382,18 +377,18 @@ There is no `CONTRIBUTING.md` yet. Source of truth is `src/` in this package. Do
 
 Not implemented, not scheduled in-repo (ideas only):
 
-- Awaited module hooks
+- Await `ready` hooks (today only `prepare` / `register` are awaited)
 - Request scope
 - CJS build
 - Official Lambda / SQS examples as packages
+- First-party React kit
 - Test utilities
 - License, changelog, CI, coverage
-
 ## Open-source status
 
 | Item | Status |
 | --- | --- |
-| Version | `1.0.3` |
+| Version | `1.0.4` |
 | License | **Missing** (GitHub `license: null`, no `license` field in `package.json`) |
 | Tests | **None** in this package |
 | CI | **None** in the repository |
@@ -402,8 +397,7 @@ Not implemented, not scheduled in-repo (ideas only):
 | ESM / CJS | ESM only |
 | README (previous) | **Missing** — this file is new |
 
-Version `1.0.3` means the package is versioned, not that it has a stability policy. Treat breaking changes as possible until a changelog and semver policy exist.
-
+Version `1.0.4` means the package is versioned, not that it has a stability policy. Treat breaking changes as possible until a changelog and semver policy exist.
 ## License
 
 **NEEDS VERIFICATION.** No license file is present in the package or on [toijs/framework](https://github.com/toijs/framework). Do not assume MIT or any other license until one is published.
