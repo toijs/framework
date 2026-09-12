@@ -1,0 +1,47 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    devDependencies:
+      '@toijs/modular':
+        specifier: ^1.0.3
+        version: 1.0.4
+      '@types/node':
+        specifier: ^22.20.1
+        version: 22.20.2
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+
+packages:
+
+  '@toijs/modular@1.0.4':
+    resolution: {integrity: sha512-5Y2AVH6TF++HJXIidFShVy/tSwl9YkpJiNy4p59J6qvbSPa3cGmeK8ncKvsa8zIoxNSxw0Vt8iGOnv8gKDmGpQ==}
+
+  '@types/node@22.20.2':
+    resolution: {integrity: sha512-xlvWf4Vs9n1PEVYwP1n4vvG07M6y8WgvJ2t0vbrWTmijsIHp1cS+uJ2kMIRdY3nHZK0nCYKrPeD171+SzF4/zw==}
+
+  typescript@5.9.3:
+    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
+  undici-types@6.21.0:
+    resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
+
+snapshots:
+
+  '@toijs/modular@1.0.4': {}
+
+  '@types/node@22.20.2':
+    dependencies:
+      undici-types: 6.21.0
+
+  typescript@5.9.3: {}
+
+  undici-types@6.21.0: {}

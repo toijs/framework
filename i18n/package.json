@@ -1,0 +1,31 @@
+{
+  "name": "@toijs/i18n",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Message store and translator for @toijs/modular",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsc -p tsconfig.json --watch"
+  },
+  "peerDependencies": {
+    "@toijs/modular": "^1.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "@toijs/modular": "^1.0.3",
+    "typescript": "~5.9.3"
+  }
+}
