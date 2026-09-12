@@ -1,7 +1,6 @@
 {
   "name": "@toijs/i18n",
   "version": "1.0.0",
-  "private": true,
   "type": "module",
   "description": "Message store and translator for @toijs/modular",
   "main": "dist/index.js",
