@@ -455,12 +455,15 @@ export class ConnectionManager {
 
   /**
    * Run seeds.
+   * @param command - "run" or "revert".
    * @param name - The name of the connection.
-   * @returns The connection.
+   * @param onExecute - Called with each seed's name right before it runs.
+   * @returns The names of the seeds that were executed, in order.
    */
   async seed(
     command: "run" | "revert",
-    name: string = this.defaultConnection
+    name: string = this.defaultConnection,
+    onExecute?: (seedName: string) => void,
   ) {
     const connection = this.getConnection(name);
 
@@ -470,26 +473,47 @@ export class ConnectionManager {
       );
     }
 
-    const seeds = this.getSeeds(name);
-
-    for (const seed of seeds) {
-      const seedInstance = new (seed as any)();
-      if (command == "run") await seedInstance.run(connection.createQueryRunner());
-      else if (command == "revert") await seedInstance.revert(connection.createQueryRunner());
-      else throw new Error(`Invalid command: ${command}`);
+    if (command != "run" && command != "revert") {
+      throw new Error(`Invalid command: ${command}`);
     }
 
-    return this;
+    // Revert in reverse registration order so dependent seeds are undone first.
+    const seeds = command == "revert"
+      ? [...this.getSeeds(name)].reverse()
+      : this.getSeeds(name);
+
+    const executed: string[] = [];
+
+    for (const seed of seeds) {
+      const seedName = (seed as any).name;
+      const seedInstance = new (seed as any)();
+      const queryRunner = connection.createQueryRunner();
+
+      onExecute?.(seedName);
+
+      try {
+        await seedInstance[command](queryRunner);
+      } finally {
+        await queryRunner.release();
+      }
+
+      executed.push(seedName);
+    }
+
+    return executed;
   }
 
   /**
    * Run migrations.
+   * @param command - "up" or "down".
    * @param name - The name of the connection.
-   * @returns The connection.
+   * @param onExecute - Called with each migration's name right before it runs.
+   * @returns The names of the migrations that were executed (or reverted).
    */
   async migrate(
     command: "up" | "down",
-    name: string = this.defaultConnection
+    name: string = this.defaultConnection,
+    onExecute?: (migrationName: string) => void,
   ) {
     const connection = this.getConnection(name);
 
@@ -499,11 +523,36 @@ export class ConnectionManager {
       );
     }
 
-    if (command == "up") await connection.runMigrations();
-    else if (command == "down") await connection.undoLastMigration();
-    else throw new Error(`Invalid command: ${command}`);
+    if (command != "up" && command != "down") {
+      throw new Error(`Invalid command: ${command}`);
+    }
 
-    return this;
+    // TypeORM only reports migrations once the whole run has finished, so hook
+    // each instance's up/down for the duration of the run to see them live.
+    const executed: string[] = [];
+    const restores = connection.migrations.map((instance) => {
+      const migrationName = instance.name ?? instance.constructor.name;
+      const original = instance[command];
+
+      instance[command] = async (queryRunner) => {
+        onExecute?.(migrationName);
+        await original.call(instance, queryRunner);
+        executed.push(migrationName);
+      };
+
+      return () => {
+        instance[command] = original;
+      };
+    });
+
+    try {
+      if (command == "up") await connection.runMigrations();
+      else await connection.undoLastMigration();
+    } finally {
+      restores.forEach((restore) => restore());
+    }
+
+    return executed;
   }
 }
 
