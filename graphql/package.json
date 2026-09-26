@@ -1,5 +1,5 @@
 {
-  "name": "@toijs/graphql-server",
+  "name": "@toijs/graphql",
   "version": "1.0.0",
   "type": "module",
   "description": "GraphQL integration for @toijs/modular",
