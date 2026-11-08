@@ -1,6 +1,6 @@
 {
   "name": "@toijs/modular",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "private": false,
   "type": "module",
   "description": "Isomorphic TypeScript composition pattern: modules, explicit DI, and Shell for Node.js and browser apps (Express, Vue, React, …)",

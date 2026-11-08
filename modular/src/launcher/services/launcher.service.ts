@@ -15,6 +15,8 @@ export class Launcher {
     modules: [] as ModuleFactory[],
   } as StartOptions;
   public instances: Map<string, Module> = new Map();
+  /** Factories already invoked — keeps re-entrant `start()` from re-running side effects. */
+  private factories = new Set<ModuleFactory>();
 
   constructor() {
     this.container = new Container();
@@ -84,26 +86,36 @@ export class Launcher {
   }
 
   /**
-   * Resolve the module instances
-   * @param modules - The modules to resolve
-   * @returns The module instances
+   * Resolve module factories into instances.
+   * Skips factories already invoked so a later `modules([...]).start()` (e.g. plugin
+   * attach) does not re-run host factory side effects. Only newly resolved modules
+   * are returned so prepare/register/ready run for them alone.
    */
-  private async resolveModuleInstances(modules: ModuleFactory[], instances: Module[] = []) {
+  private async resolveModuleInstances(
+    modules: ModuleFactory[],
+    instances: Module[] = [],
+  ) {
     for (const module of modules) {
-      const moduleInstance = module(this);
+      if (this.factories.has(module)) {
+        continue;
+      }
 
-      // If the module is already registered, skip it
+      const moduleInstance = module(this);
+      this.factories.add(module);
+
+      // Duplicate or empty name: factory side effects already ran once; skip hooks.
       if (this.instances.has(moduleInstance.name) || !moduleInstance.name) {
         continue;
       }
 
-      // Register the module instance
       this.instances.set(moduleInstance.name, moduleInstance);
       instances.push(moduleInstance);
 
-      // Resolve the module instances
       if (moduleInstance.dependencies) {
-        instances = await this.resolveModuleInstances(moduleInstance.dependencies, instances);
+        instances = await this.resolveModuleInstances(
+          moduleInstance.dependencies,
+          instances,
+        );
       }
     }
 
@@ -111,14 +123,18 @@ export class Launcher {
   }
 
   /**
-   * Start the application
+   * Start (or continue starting) the application.
+   * Safe to call again after `modules([...])` adds more factories — only new
+   * modules run prepare → register → ready.
    */
   async start() {
     if (this.options.modules.length === 0) {
       throw new Error("No modules registered");
     }
 
-    let instances: Module[] = await this.resolveModuleInstances(this.options.modules);
+    const instances: Module[] = await this.resolveModuleInstances(
+      this.options.modules,
+    );
 
     for (const instance of instances) {
       await instance.prepare?.();
