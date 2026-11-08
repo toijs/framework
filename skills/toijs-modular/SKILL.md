@@ -42,7 +42,7 @@ await new Launcher()
   .start();
 ```
 
-`start()` throws if no modules. Duplicate `name`s are skipped.
+`start()` throws if no modules. Duplicate `name`s are skipped. Re-entrant `modules([...]).start()` (e.g. plugin attach on a live host launcher) only runs hooks for newly resolved factories — already-invoked factories are not called again.
 
 ## Module factory
 
